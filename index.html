@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✨ Kawaii Coin Toss ✨</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/ml5@0.12.2/dist/ml5.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#fff0f8; font-family:'Nunito',sans-serif; min-height:100vh; overflow:hidden; position:relative; }
+
+.deco { position:fixed; font-size:1.6rem; animation:floatDeco 6s ease-in-out infinite; pointer-events:none; z-index:0; opacity:0.45; }
+@keyframes floatDeco { 0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-18px) rotate(12deg);} }
+
+h1 { font-family:'Pacifico',cursive; color:#ff6eb4; text-align:center; font-size:2.1rem; padding:18px 0 8px; text-shadow:3px 3px 0 #ffd6ec; position:relative; z-index:10; }
+.subtitle { text-align:center; color:#c96faa; font-size:0.95rem; font-weight:700; margin-bottom:12px; z-index:10; position:relative; }
+
+.scorebar { display:flex; justify-content:center; gap:28px; margin-bottom:14px; z-index:10; position:relative; }
+.score-pill { background:#fff; border:3px solid #ffb3d9; border-radius:50px; padding:6px 22px; font-size:1rem; font-weight:900; color:#e05ba0; box-shadow:0 3px 0 #ffb3d9; display:flex; align-items:center; gap:8px; }
+.score-pill span { color:#ff6eb4; font-size:1.25rem; }
+
+.game-area { display:flex; align-items:flex-start; justify-content:center; gap:28px; padding:0 20px; position:relative; z-index:10; }
+
+.cam-panel { background:#fff; border:4px solid #ffb3d9; border-radius:28px; box-shadow:6px 6px 0 #ffb3d9; padding:14px 14px 10px; display:flex; flex-direction:column; align-items:center; min-width:260px; }
+.cam-title { font-weight:900; color:#e05ba0; font-size:0.95rem; margin-bottom:8px; }
+#cam-container { position:relative; width:224px; height:168px; border-radius:16px; overflow:hidden; border:3px solid #ffd6ec; background:#ffe0f4; }
+#cam-video { position:absolute; width:224px; height:168px; object-fit:cover; opacity:0; pointer-events:none; top:0; left:0; }
+#cam-canvas { position:absolute; top:0; left:0; width:224px; height:168px; border-radius:13px; }
+.gesture-badge { margin-top:10px; background:linear-gradient(135deg,#ff85c8,#ff6eb4); color:#fff; font-weight:900; font-size:1rem; padding:7px 22px; border-radius:50px; box-shadow:0 4px 0 #d94f9a; min-width:190px; text-align:center; transition:background 0.2s; }
+.hint-text { font-size:0.78rem; color:#c47fab; margin-top:6px; text-align:center; font-weight:700; }
+
+.coin-panel { background:#fff; border:4px solid #b3d9ff; border-radius:28px; box-shadow:6px 6px 0 #b3d9ff; padding:14px 14px 10px; display:flex; flex-direction:column; align-items:center; min-width:260px; }
+.coin-title { font-weight:900; color:#5b9be0; font-size:0.95rem; margin-bottom:8px; }
+.coin-stage { width:224px; height:168px; display:flex; align-items:center; justify-content:center; position:relative; background:linear-gradient(160deg,#e8f4ff 0%,#f0e8ff 100%); border-radius:16px; border:3px solid #d6ecff; overflow:hidden; }
+
+.sparkle { position:absolute; font-size:1.1rem; animation:sparklePop 0.6s ease-out forwards; pointer-events:none; }
+@keyframes sparklePop { 0%{transform:scale(0) rotate(0deg);opacity:1;}100%{transform:scale(1.6) rotate(45deg);opacity:0;} }
+
+.coin-wrap { perspective:600px; }
+.coin { width:110px; height:110px; border-radius:50%; position:relative; transform-style:preserve-3d; }
+.coin-face { position:absolute; width:100%; height:100%; border-radius:50%; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; flex-direction:column; font-size:2.4rem; font-weight:900; border:6px solid; box-shadow:inset 0 -5px 12px rgba(0,0,0,0.12); }
+.coin-heads { background:linear-gradient(135deg,#ffe17a,#ffd000,#ffe17a); border-color:#f0b800; color:#a07800; }
+.coin-tails { background:linear-gradient(135deg,#e0e0e0,#c8c8c8,#e0e0e0); border-color:#aaa; color:#666; transform:rotateY(180deg); }
+.coin-label { font-family:'Nunito',sans-serif; font-size:0.7rem; font-weight:900; letter-spacing:2px; margin-top:2px; }
+
+@keyframes coinFlipHeads {
+  0%   { transform:translateY(0)     rotateY(0deg)    scale(1); }
+  25%  { transform:translateY(-85px) rotateY(540deg)  scale(1.15); }
+  55%  { transform:translateY(-55px) rotateY(1080deg) scale(1.08); }
+  80%  { transform:translateY(5px)   rotateY(1350deg) scale(0.98); }
+  100% { transform:translateY(0)     rotateY(1440deg) scale(1); }
+}
+@keyframes coinFlipTails {
+  0%   { transform:translateY(0)     rotateY(0deg)    scale(1); }
+  25%  { transform:translateY(-85px) rotateY(540deg)  scale(1.15); }
+  55%  { transform:translateY(-55px) rotateY(1080deg) scale(1.08); }
+  80%  { transform:translateY(5px)   rotateY(1530deg) scale(0.98); }
+  100% { transform:translateY(0)     rotateY(1620deg) scale(1); }
+}
+.coin.flip-heads { animation:coinFlipHeads 1.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+.coin.flip-tails { animation:coinFlipTails 1.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+@keyframes idlePulse { 0%,100%{transform:scale(1);}50%{transform:scale(1.05);} }
+.coin.idle { animation:idlePulse 2.2s ease-in-out infinite; }
+
+.star-deco { position:absolute; font-size:1.1rem; opacity:0; transition:opacity 0.3s; }
+.coin-stage.lit .star-deco { opacity:0.7; }
+.waiting-msg { position:absolute; font-size:0.85rem; color:#b0c8e8; font-weight:800; text-align:center; padding:8px; pointer-events:none; }
+.coin-result-label { margin-top:10px; font-size:1rem; font-weight:900; color:#5b9be0; min-height:24px; text-align:center; }
+
+.banner-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:100; pointer-events:none; opacity:0; transition:opacity 0.3s; }
+.banner-overlay.show { opacity:1; pointer-events:auto; }
+.banner-bg { position:absolute; inset:0; background:rgba(255,180,220,0.25); backdrop-filter:blur(3px); }
+.banner { position:relative; z-index:2; background:#fff; border:6px solid; border-radius:36px; padding:36px 56px; text-align:center; transform:scale(0.5) rotate(-8deg); transition:transform 0.45s cubic-bezier(0.175,0.885,0.32,1.275); }
+.banner-overlay.show .banner { transform:scale(1) rotate(0deg); }
+.banner.win-banner  { border-color:#ff85c8; box-shadow:0 0 0 8px #ffd6ec,0 20px 60px rgba(0,0,0,0.1); }
+.banner.lose-banner { border-color:#b3d9ff; box-shadow:0 0 0 8px #deeeff,0 20px 60px rgba(0,0,0,0.1); }
+.banner-emoji { font-size:3.5rem; display:block; margin-bottom:10px; animation:bounceBig 0.6s ease infinite alternate; }
+@keyframes bounceBig { from{transform:translateY(0);}to{transform:translateY(-10px);} }
+.banner-text { font-family:'Pacifico',cursive; font-size:2.4rem; display:block; margin-bottom:8px; }
+.win-banner  .banner-text { color:#ff6eb4; }
+.lose-banner .banner-text { color:#5b9be0; }
+.banner-sub { font-weight:800; font-size:0.95rem; color:#aaa; margin-bottom:18px; display:block; }
+.banner-btn { background:linear-gradient(135deg,#ff85c8,#ff6eb4); color:#fff; border:none; border-radius:50px; font-family:'Nunito',sans-serif; font-weight:900; font-size:1rem; padding:10px 32px; cursor:pointer; box-shadow:0 5px 0 #d94f9a; transition:transform 0.1s,box-shadow 0.1s; pointer-events:auto; }
+.banner-btn:hover { transform:translateY(2px); box-shadow:0 3px 0 #d94f9a; }
+.lose-banner .banner-btn { background:linear-gradient(135deg,#6fb8ff,#5b9be0); box-shadow:0 5px 0 #3a78c0; }
+
+.confetti-piece { position:fixed; width:10px; height:10px; border-radius:2px; pointer-events:none; z-index:200; animation:confettiFall linear forwards; }
+@keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;} }
+
+#permission-gate { position:fixed; inset:0; background:#fff0f8; z-index:999; display:flex; align-items:center; justify-content:center; }
+#permission-gate.hidden { display:none; }
+.gate-card { background:#fff; border:5px solid #ffb3d9; border-radius:36px; box-shadow:8px 8px 0 #ffb3d9; padding:48px 52px; text-align:center; max-width:420px; animation:gatePop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+@keyframes gatePop { from{transform:scale(0.7) rotate(-4deg);opacity:0;}to{transform:scale(1) rotate(0deg);opacity:1;} }
+.gate-emoji { font-size:4rem; display:block; margin-bottom:14px; animation:bounceBig 1s ease infinite alternate; }
+.gate-title { font-family:'Pacifico',cursive; color:#ff6eb4; font-size:1.9rem; text-shadow:3px 3px 0 #ffd6ec; margin-bottom:12px; }
+.gate-desc { color:#c47fab; font-size:0.95rem; font-weight:700; line-height:1.7; margin-bottom:28px; }
+.gate-btn { background:linear-gradient(135deg,#ff85c8,#ff6eb4); color:#fff; border:none; border-radius:50px; font-family:'Nunito',sans-serif; font-weight:900; font-size:1.1rem; padding:14px 40px; cursor:pointer; box-shadow:0 6px 0 #d94f9a; transition:transform 0.1s,box-shadow 0.1s; }
+.gate-btn:hover { transform:translateY(2px); box-shadow:0 4px 0 #d94f9a; }
+.gate-btn:disabled { opacity:0.7; cursor:not-allowed; }
+.gate-error { margin-top:16px; background:#fff0f0; border:2px solid #ffb3b3; border-radius:16px; padding:12px 20px; color:#e05050; font-weight:700; font-size:0.88rem; display:none; }
+.gate-error.show { display:block; }
+</style>
+</head>
+<body>
+
+<div class="deco" style="top:5%;left:3%;animation-delay:0s">🌸</div>
+<div class="deco" style="top:12%;left:90%;animation-delay:1s">⭐</div>
+<div class="deco" style="top:80%;left:5%;animation-delay:2s">🍡</div>
+<div class="deco" style="top:75%;left:92%;animation-delay:0.5s">🌷</div>
+<div class="deco" style="top:45%;left:1%;animation-delay:1.5s">💕</div>
+<div class="deco" style="top:40%;left:96%;animation-delay:2.5s">🎀</div>
+<div class="deco" style="top:90%;left:48%;animation-delay:3s">✨</div>
+
+<!-- PERMISSION GATE -->
+<div id="permission-gate">
+  <div class="gate-card">
+    <span class="gate-emoji">📷</span>
+    <div class="gate-title">Camera Needed!</div>
+    <p class="gate-desc">
+      This kawaii game reads your hand gestures to play!<br><br>
+      👍 <strong>Thumbs Up</strong> = guess Heads<br>
+      👎 <strong>Thumbs Down</strong> = guess Tails<br><br>
+      Click below and allow camera access ✨
+    </p>
+    <button class="gate-btn" id="allow-btn" onclick="requestCamera()">Allow Camera 🌸</button>
+    <div class="gate-error" id="gate-error">
+      😿 Camera was denied. Please allow it in your browser settings and refresh!
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game-wrapper" style="display:none">
+  <h1>✨ Kawaii Coin Toss ✨</h1>
+  <div class="subtitle">👍 Thumbs Up = Heads &nbsp;|&nbsp; 👎 Thumbs Down = Tails</div>
+  <div class="scorebar">
+    <div class="score-pill">🏆 Wins <span id="win-count">0</span></div>
+    <div class="score-pill">💔 Losses <span id="lose-count">0</span></div>
+  </div>
+  <div class="game-area">
+    <div class="cam-panel">
+      <div class="cam-title">📷 Show Your Guess!</div>
+      <div id="cam-container">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <canvas id="cam-canvas" width="224" height="168"></canvas>
+      </div>
+      <div class="gesture-badge" id="gesture-badge">Loading model... ⏳</div>
+      <div class="hint-text">Show 👍 or 👎 to flip the coin!</div>
+    </div>
+
+    <div class="coin-panel">
+      <div class="coin-title">🪙 The Coin!</div>
+      <div class="coin-stage" id="coin-stage">
+        <span class="star-deco" style="top:10px;left:14px">⭐</span>
+        <span class="star-deco" style="top:12px;right:16px">✨</span>
+        <span class="star-deco" style="bottom:12px;left:18px">💫</span>
+        <span class="star-deco" style="bottom:10px;right:14px">🌟</span>
+        <div class="waiting-msg" id="waiting-msg">Show a gesture<br>to flip! 🪄</div>
+        <div class="coin-wrap">
+          <div class="coin idle" id="coin">
+            <div class="coin-face coin-heads"><span>🐱</span><span class="coin-label">HEADS</span></div>
+            <div class="coin-face coin-tails"><span>🌙</span><span class="coin-label">TAILS</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="coin-result-label" id="coin-result-label">— flip to play! —</div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN BANNER -->
+<div class="banner-overlay" id="win-overlay">
+  <div class="banner-bg"></div>
+  <div class="banner win-banner">
+    <span class="banner-emoji">🏆</span>
+    <span class="banner-text">Winner!</span>
+    <span class="banner-sub">You guessed right! Amazing~ ✨</span>
+    <button class="banner-btn" onclick="closeBanner('win-overlay')">Play Again 🎀</button>
+  </div>
+</div>
+
+<!-- LOSE BANNER -->
+<div class="banner-overlay" id="lose-overlay">
+  <div class="banner-bg"></div>
+  <div class="banner lose-banner">
+    <span class="banner-emoji">🌸</span>
+    <span class="banner-text">Better Luck Next Time!</span>
+    <span class="banner-sub">Don't give up, cutie~ 💕</span>
+    <button class="banner-btn" onclick="closeBanner('lose-overlay')">Try Again 💫</button>
+  </div>
+</div>
+
+<script>
+const MODEL_URL = 'https://teachablemachine.withgoogle.com/models/IU-Nw10jK/';
+let classifier = null;
+let wins = 0, losses = 0;
+let isFlipping = false;
+let modelReady = false;
+
+async function requestCamera() {
+  const btn = document.getElementById('allow-btn');
+  btn.textContent = 'Opening camera... 🌸';
+  btn.disabled = true;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: 224, height: 168 },
+      audio: false
+    });
+    initGame(stream);
+  } catch(err) {
+    console.error('Camera denied:', err);
+    document.getElementById('gate-error').classList.add('show');
+    btn.textContent = 'Try Again 🌸';
+    btn.disabled = false;
+  }
+}
+
+function initGame(stream) {
+  document.getElementById('permission-gate').classList.add('hidden');
+  document.getElementById('game-wrapper').style.display = 'block';
+
+  const video  = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  video.srcObject = stream;
+  video.onloadedmetadata = () => {
+    video.play();
+    (function paint() {
+      if (!video.paused) {
+        ctx.save();
+        ctx.translate(224, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, 224, 168);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,160,210,0.8)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(2, 2, 220, 164, 13);
+        ctx.stroke();
+      }
+      requestAnimationFrame(paint);
+    })();
+  };
+
+  setBadge('Loading model... ⏳', '#d4b8ff', '#b39ddb');
+  classifier = ml5.imageClassifier(MODEL_URL + 'model.json', () => {
+    modelReady = true;
+    setBadge('Show a gesture! 🤔', '#d4b8ff', '#b39ddb');
+    classifyLoop();
+  });
+}
+
+function classifyLoop() {
+  if (!modelReady) return;
+  const video = document.getElementById('cam-video');
+  if (video.readyState < 2) { setTimeout(classifyLoop, 200); return; }
+  classifier.classify(video, (err, results) => {
+    if (err) { console.error('classify error:', err); setTimeout(classifyLoop, 200); return; }
+    if (results && results[0]) {
+      // Log every label so we can see exactly what the model returns
+      console.log('Label:', JSON.stringify(results[0].label), 'Confidence:', results[0].confidence.toFixed(2));
+      onLabel(results[0].label);
+    }
+    setTimeout(classifyLoop, 150);
+  });
+}
+
+function onLabel(raw) {
+  // Normalize: lowercase + trim so minor casing differences don't matter
+  const label = raw.toLowerCase().trim();
+  const badge = document.getElementById('gesture-badge');
+
+  if (label.includes('up') || label.includes('thumbs up')) {
+    setBadge('👍 Heads!', '#ff85c8', '#ff6eb4');
+    if (!isFlipping) triggerFlip('Thumbs Up');
+
+  } else if (label.includes('down') || label.includes('thumbs down')) {
+    setBadge('👎 Tails!', '#6fb8ff', '#5b9be0');
+    if (!isFlipping) triggerFlip('Thumbs Down');
+
+  } else {
+    // Show the raw label in the badge so we can debug exactly what's coming back
+    setBadge('👀 ' + raw, '#d4b8ff', '#b39ddb');
+  }
+}
+
+function setBadge(txt, c1, c2) {
+  const b = document.getElementById('gesture-badge');
+  b.textContent = txt;
+  b.style.background = `linear-gradient(135deg,${c1},${c2})`;
+}
+
+function triggerFlip(gesture) {
+  // Double-check lock (onLabel also checks but classifier is async)
+  if (isFlipping) return;
+  isFlipping = true;
+  console.log('FLIPPING for gesture:', gesture);
+
+  const result = Math.random() < 0.5 ? 'heads' : 'tails';
+  const coin   = document.getElementById('coin');
+  const stage  = document.getElementById('coin-stage');
+  const lbl    = document.getElementById('coin-result-label');
+
+  document.getElementById('waiting-msg').style.display = 'none';
+  coin.style.transform = '';
+  coin.classList.remove('idle', 'flip-heads', 'flip-tails');
+  void coin.offsetWidth;
+
+  spawnSparkles(stage);
+  stage.classList.add('lit');
+  coin.classList.add(result === 'heads' ? 'flip-heads' : 'flip-tails');
+
+  setTimeout(() => {
+    coin.classList.remove('flip-heads', 'flip-tails');
+    coin.style.transform = result === 'heads' ? 'rotateY(1440deg)' : 'rotateY(1620deg)';
+    lbl.textContent = result === 'heads' ? '🐱 Heads!' : '🌙 Tails!';
+    lbl.style.color = result === 'heads' ? '#f0a800' : '#888';
+
+    const won = (gesture === 'Thumbs Up'  && result === 'heads') ||
+                (gesture === 'Thumbs Down' && result === 'tails');
+
+    setTimeout(() => {
+      if (won) { wins++; document.getElementById('win-count').textContent = wins; spawnConfetti(); showBanner('win-overlay'); }
+      else     { losses++; document.getElementById('lose-count').textContent = losses; showBanner('lose-overlay'); }
+    }, 400);
+  }, 1550);
+}
+
+function showBanner(id) { document.getElementById(id).classList.add('show'); }
+
+function closeBanner(id) {
+  document.getElementById(id).classList.remove('show');
+  const coin = document.getElementById('coin');
+  coin.style.transform = '';
+  coin.classList.remove('flip-heads', 'flip-tails');
+  void coin.offsetWidth;
+  coin.classList.add('idle');
+  document.getElementById('coin-result-label').textContent = '— flip to play! —';
+  document.getElementById('coin-result-label').style.color = '#5b9be0';
+  document.getElementById('coin-stage').classList.remove('lit');
+  document.getElementById('waiting-msg').style.display = '';
+  isFlipping = false;
+}
+
+function spawnSparkles(parent) {
+  ['✨','⭐','💫','🌟','🌸'].forEach((e, i) => {
+    setTimeout(() => {
+      const s = document.createElement('span');
+      s.className = 'sparkle'; s.textContent = e;
+      s.style.left = (15 + Math.random() * 70) + '%';
+      s.style.top  = (10 + Math.random() * 70) + '%';
+      parent.appendChild(s);
+      setTimeout(() => s.remove(), 800);
+    }, i * 80);
+  });
+}
+
+function spawnConfetti() {
+  const colors = ['#ff85c8','#ffd700','#6fb8ff','#a0e060','#ff6eb4','#ffe17a','#c9a0ff'];
+  const shapes = ['🎀','🌸','⭐','💕','✨'];
+  for (let i = 0; i < 45; i++) {
+    setTimeout(() => {
+      const c = document.createElement('div');
+      c.className = 'confetti-piece';
+      if (Math.random() > 0.5) {
+        c.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+        c.style.cssText += 'background:transparent;font-size:1.2rem;width:auto;';
+      } else {
+        c.style.background   = colors[Math.floor(Math.random() * colors.length)];
+        c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      }
+      c.style.left              = (Math.random() * 100) + 'vw';
+      c.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      c.style.animationDelay    = (Math.random() * 0.4) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3500);
+    }, i * 35);
+  }
+}
+</script>
+</body>
+</html>
